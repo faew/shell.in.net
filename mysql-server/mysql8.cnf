@@ -1,0 +1,11 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+[mysqld]
+mysqlx=0
+max_allowed_packet = 50M
+innodb_buffer_pool_size = 128M
+max_connections = 100
+collation-server = utf8mb4_unicode_ci
+character-set-server = utf8mb4
+binlog_expire_logs_seconds = 604800
