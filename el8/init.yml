@@ -1,0 +1,70 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install selinux
+      yum: name="selinux-policy-targeted" state="present"
+    - name: Enable SELinux service
+      ansible.posix.selinux: policy="targeted" state="enforcing"
+      register: enable_selinux
+    - name: Enable SELinux in system
+      when: enable_selinux.changed
+      block:
+        - name: Force relable and reboot
+          ansible.builtin.file: path="/.autorelabel" state="touch"
+        - name: Enable selinux in grub
+          ansible.builtin.replace: path=/boot/grub2/grubenv regexp='selinux=0' replace='selinux=1'
+        - name: Reboot
+          command: reboot
+    - name: Install tools
+      yum:
+        name: "epel-release, mc, telnet, nano, traceroute, wget, net-tools, yum-utils, aspell-en, setools, crontabs, rsync,\
+               sshpass, pwgen, supervisor, glances, unzip, p7zip, htop, rdiff-backup, smartmontools, dmidecode, lm_sensors,\
+               linux-firmware, microcode_ctl, psmisc, audit-libs, pngquant, optipng, logrotate,  GraphicsMagick, bind-utils,\
+               idn2, dstat, nload, zlib-devel, openssl-devel, sqlite-devel, bzip2-devel, perl-devel, curl-devel, certbot,\
+               glibc-headers, @Development tools"
+        state: present
+    - name: Install from powertools
+      yum: name="fuse-sshfs" enablerepo="powertools" state="present"
+    - name: Install base services
+      yum: name="audit, sysstat, chrony, cronie, firewalld, fail2ban, postfix, rsyslog" state=present
+    - name: Disable fail2ban database
+      ansible.builtin.replace: path=/etc/fail2ban/fail2ban.conf regexp='= /var/lib/fail2ban/fail2ban.sqlite3' replace='= None'
+    - name: Enable firewallcmd-ipset for fail2ban
+      ini_file: path="/etc/fail2ban/jail.d/customisation.local" section="DEFAULT" option="banaction" value="firewallcmd-ipset"
+    - name: Enable jail sshd in fail2ban
+      ini_file: path="/etc/fail2ban/jail.d/customisation.local" section="sshd" option="enabled" value="true"
+    - name: Activate base service
+      ansible.builtin.systemd: name="{{ item }}" state="started" enabled="yes"
+      loop: ['fail2ban','auditd','sysstat','chronyd','crond','postfix','rsyslog','firewalld']
+    - name: Add to firewalld service default eth
+      ansible.posix.firewalld: zone="public" interface="{{ ansible_default_ipv4.interface }}" state="enabled" permanent="yes"
+    - name: Get swap
+      shell: "grep SwapFree /proc/meminfo | awk '{print $2}'"
+      register: swap_free
+      changed_when: false
+    - name: Check swap file exists
+      stat: path="/swapfile"
+      register: swap_file
+    - name: Configure swap
+      when: swap_file.stat.exists == false and swap_free.stdout == "0"
+      block:
+        - name: Create swap file
+          command: "dd if=/dev/zero of=/swapfile bs=1M count=1024"
+        - name: Change swap file permissions
+          file: path="/swapfile" owner="root" group="root" mode="0600"
+        - name: Format swap file
+          command: "mkswap /swapfile"
+        - name: Add swap entry to fstab
+          mount: name="none" src="/swapfile" fstype="swap" opts="sw" passno="0" dump="0" state="present"
+        - name: Swap on
+          command: "swapon /swapfile"
+    - name: Create dirs
+      ansible.builtin.file: path="{{ item }}" state="directory" owner="root" group="root" mode="0700" setype="admin_home_t"
+      loop: ['/etc/shell.in.net','/var/backup','/var/iso','/etc/ansible/group_vars']
+    - name: Init global var app url
+      copy:
+        content: 'shell_in_net_app_url: "https://shell.in.net"'
+        dest: /etc/ansible/group_vars/all
+        force: no
