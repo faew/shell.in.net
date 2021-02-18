@@ -68,3 +68,5 @@
         content: 'shell_in_net_app_url: "https://shell.in.net"'
         dest: /etc/ansible/group_vars/all
         force: no
+    - name: Disable ansible localhost warning
+      ini_file: path="/etc/ansible/ansible.cfg" section="defaults" option="localhost_warning" value="False"
