@@ -57,7 +57,7 @@
       command: mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.front
     - name: Create ssl_module config
       when: ssl_module.stat.exists == true
-      command: touch /etc/httpd/conf.d/ssl.conf
+      file: path="/etc/httpd/conf.d/ssl.conf" state=touch
     - name: Ensure disable ipv6 on 443 port
       ansible.builtin.lineinfile: path="/etc/httpd/conf.d/ssl.conf.front" regexp="^Listen 443" line="Listen 0.0.0.0:443"
     - name: Selinux enable booleans for work email, network, php, php-cgi
@@ -87,9 +87,5 @@
       ansible.builtin.systemd: name="httpd" state="restarted" enabled="yes"
     - name: Copy systemd script start httpd front
       copy: src="/usr/lib/systemd/system/httpd@.service" dest="/usr/lib/systemd/system/httpd@front.service" remote_src="yes"
-    - name: Deactivate php-fmp service
-      ansible.builtin.systemd: name="php-fpm" state="stopped" enabled="no"
-    - name: Delete php-fmp service from wants
-      file: path=/usr/lib/systemd/system/httpd.service.d/php-fpm.conf state=absent
     - name: Activate httpd front service
       ansible.builtin.systemd: name="httpd@front" state="restarted" enabled="yes" daemon_reload="yes"
