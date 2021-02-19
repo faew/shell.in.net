@@ -53,10 +53,10 @@
       stat: path="/etc/httpd/conf.d/ssl.conf"
       register: ssl_module
     - name: Move ssl_module config to front
-      when: ssl_module.stat.size != 0
+      when: ssl_module.stat.size > 0
       command: mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.front
     - name: Create ssl_module config
-      when: ssl_module.stat.size != 0
+      when: ssl_module.stat.size > 0
       file: path="/etc/httpd/conf.d/ssl.conf" state=touch
     - name: Ensure disable ipv6 on 443 port
       ansible.builtin.lineinfile: path="/etc/httpd/conf.d/ssl.conf.front" regexp="^Listen 443" line="Listen 0.0.0.0:443"
