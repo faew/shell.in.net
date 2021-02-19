@@ -1,0 +1,95 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install Apache server
+      yum: name="httpd, httpd-devel, mod_ssl, libcap-devel" state="present"
+    - name: Check Itk module file exists
+      stat: path="/etc/httpd/modules/mpm_itk.so"
+      register: itk_module
+    - name: Download itk_module
+      when: itk_module.stat.exists == false
+      block:
+        - name: Download source mpm-itk
+          get_url:
+            url: "{{ shell_in_net_app_url }}/httpd/mpm-itk-2.4.7-04.tar.gz"
+            dest: /tmp/mpm-itk.tar.gz
+            checksum: md5:a25d8db440858b593f1d6a4938fa3d02
+    - name: Compile itk_module
+      when: itk_module.stat.exists == false
+      block:
+        - name: Unarchive mpm-itk
+          ansible.builtin.unarchive: src="/tmp/mpm-itk.tar.gz" dest="/tmp" remote_src="yes"
+        - name: Make and Install mpm-itk
+          shell: cd /tmp/mpm-itk-2.4.7-04 && ./configure && make && make install
+        - name: Clean builds
+          file: path=/tmp/mpm-itk-2.4.7-04 state=absent
+        - name: Clean archive
+          file: path=/tmp/mpm-itk.tar.gz state=absent
+    - name: Activate httpd service
+      ansible.builtin.systemd: name="httpd" state="started" enabled="yes"
+    - name: Permit traffic for http service
+      ansible.posix.firewalld: service="http" permanent="yes" state="enabled" zone="public" immediate="yes"
+    - name: Permit traffic for https service
+      ansible.posix.firewalld: service="https" permanent="yes" state="enabled" zone="public" immediate="yes"
+    - name: Create user empty.local
+      ansible.builtin.user: name="empty.local" state="present" home="/var/www/empty.local" shell="/sbin/nologin"
+    - name: Create project home
+      ansible.builtin.file: path="/var/www/empty.local/project" state="directory" owner="empty.local" group="empty.local" mode="0750" setype="httpd_sys_rw_content_t"
+    - name: Create tmp
+      ansible.builtin.file: path="/var/www/empty.local/tmp" state="directory" owner="empty.local" group="empty.local" mode="0750" setype="tmp_t"
+    - name: Create documentroot
+      ansible.builtin.file: path="/var/www/empty.local/project/html/web" state="directory" owner="empty.local" group="empty.local" mode="0750"
+    - name: Create domain store for services with Default virtualhost
+      copy: content="Use VHostSSI empty.local localhost html/web" dest="/etc/httpd/conf.modules.d/11-domains.conf" force="no"
+    - name: Create domain store for front
+      copy: content="" dest="/etc/httpd/conf.modules.d/11-domains.conf.front" force="no"
+    - name: Create domain passwords folder
+      file: path="/etc/httpd/htpasswd" state="directory"
+    - name: Ensure disable ipv6 on 81 port and change listen port
+      ansible.builtin.lineinfile: path="/etc/httpd/conf/httpd.conf" regexp="^Listen 80" line="Listen 127.0.0.1:81"
+    - name: Check ssl.conf file exists
+      stat: path="/etc/httpd/conf.d/ssl.conf"
+      register: ssl_module
+    - name: Move ssl_module config to front
+      when: ssl_module.stat.exists == true
+      command: mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.front
+    - name: Create ssl_module config
+      when: ssl_module.stat.exists == true
+      command: touch /etc/httpd/conf.d/ssl.conf
+    - name: Ensure disable ipv6 on 443 port
+      ansible.builtin.lineinfile: path="/etc/httpd/conf.d/ssl.conf.front" regexp="^Listen 443" line="Listen 0.0.0.0:443"
+    - name: Selinux enable booleans for work email, network, php, php-cgi
+      ansible.posix.seboolean: name="{{ item }}" state="yes" persistent="yes"
+      loop: ['httpd_can_sendmail','httpd_can_network_connect','httpd_sys_script_anon_write','httpd_execmem','domain_can_mmap_files']
+    - name: Write custom config httpd - enable itk and limits
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/01-mpm-itk.conf', split_lines=False) }}" dest="/etc/httpd/conf.modules.d/01-mpm-itk.conf"
+    - name: Write custom config httpd - enable htaccess
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/allowoverride.conf', split_lines=False) }}" dest="/etc/httpd/conf.d/allowoverride.conf"
+    - name: Write custom config httpd - main store config macros
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/10-vhost.conf', split_lines=False) }}" dest="/etc/httpd/conf.modules.d/10-vhost.conf"
+    - name: Write custom config httpd - letsencrypt support
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/acme-challenge.conf', split_lines=False) }}" dest="/etc/httpd/conf.d/acme-challenge.conf"
+    - name: Write custom config httpd - reverce proxy support
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/remouteip.conf', split_lines=False) }}" dest="/etc/httpd/conf.d/remouteip.conf"
+    - name: Write custom config httpd-front - logrotate
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/front.logrotate', split_lines=False) }}" dest="/etc/logrotate.d/httpd-front"
+    - name: Write custom config httpd front
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/httpd/front.conf', split_lines=False) }}" dest="/etc/httpd/conf/front.conf"
+    - name: Create chain for self signed certificate
+      copy: src="/etc/pki/tls/certs/localhost.crt" dest="/etc/pki/tls/certs/localhost-chain.crt" remote_src="yes"
+    - name: Ensure disable event mpm
+      ansible.builtin.replace: path="/etc/httpd/conf.modules.d/00-mpm.conf" regexp="^LoadModule mpm_event_module" replace="#LoadModule mpm_event_module"
+    - name: Ensure enable prefork mpm
+      ansible.builtin.replace: path="/etc/httpd/conf.modules.d/00-mpm.conf" regexp="^#LoadModule mpm_prefork_module" replace="LoadModule mpm_prefork_module"
+    - name: Restart httpd service
+      ansible.builtin.systemd: name="httpd" state="restarted" enabled="yes"
+    - name: Copy systemd script start httpd front
+      copy: src="/usr/lib/systemd/system/httpd@.service" dest="/usr/lib/systemd/system/httpd@front.service" remote_src="yes"
+    - name: Deactivate php-fmp service
+      ansible.builtin.systemd: name="php-fpm" state="stopped" enabled="no"
+    - name: Delete php-fmp service from wants
+      file: path=/usr/lib/systemd/system/httpd.service.d/php-fpm.conf state=absent
+    - name: Activate httpd front service
+      ansible.builtin.systemd: name="httpd@front" state="restarted" enabled="yes" daemon_reload="yes"
