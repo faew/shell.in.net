@@ -1,0 +1,12 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+/var/log/httpd/*log-front {
+    missingok
+    notifempty
+    sharedscripts
+    compress
+    postrotate
+        /bin/systemctl reload httpd@front.service > /dev/null 2>/dev/null || true
+    endscript
+}
