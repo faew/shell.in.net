@@ -1,0 +1,20 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Default php.ini path
+      set_fact:
+        phpini: "{{ phpini | default('/etc/php.ini') }}"
+    - name: Update php.ini - enable short open tag
+      ini_file: path="{{ phpini }}" section="PHP" option="short_open_tag" value="On"
+    - name: Update php.ini - disable expose
+      ini_file: path="{{ phpini }}" section="PHP" option="expose_php" value="Off"
+    - name: Update php.ini - increase upload max
+      ini_file: path="{{ phpini }}" section="PHP" option="upload_max_filesize" value="20M"
+    - name: Update php.ini - increase post max
+      ini_file: path="{{ phpini }}" section="PHP" option="post_max_size" value="20M"
+    - name: Update php.ini - set UTC as default timezone
+      ini_file: path="{{ phpini }}" section="Date" option="date.timezone" value="UTC"
+    - name: Update php.ini - disable jit
+      ini_file: path="{{ phpini }}" section="Pcre" option="pcre.jit" value="0"
