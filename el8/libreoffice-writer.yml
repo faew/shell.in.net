@@ -1,0 +1,48 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Check libreoffice bin file exists
+      stat: path="/opt/libreoffice6.4/program/soffice"
+      register: libreoffice_bin
+    - name: Install libreoffice
+      when: libreoffice_bin.stat.exists == false
+      block:
+        - name: Download libreoffice
+          get_url:
+            url: "https://downloadarchive.documentfoundation.org/libreoffice/old/6.4.7.2/rpm/x86_64/LibreOffice_6.4.7.2_Linux_x86-64_rpm.tar.gz"
+            dest: "/tmp/libreoffice.tar.gz"
+        - name: Download libreoffice asc
+          get_url:
+            url: "https://downloadarchive.documentfoundation.org/libreoffice/old/6.4.7.2/rpm/x86_64/LibreOffice_6.4.7.2_Linux_x86-64_rpm.tar.gz.asc"
+            dest: "/tmp/libreoffice.tar.gz.asc"
+        - name: Add key documentfoundation.org
+          command: gpg --keyserver hkp://keys.gnupg.net --recv-keys AFEEAEA3
+        - name: Add key to trust
+          command: gpg --tofu-policy good "C283 9ECA D940 8FBE 9531  C3E9 F434 A1EF AFEE AEA3"
+        - name: Check signature
+          command: gpg --verify /tmp/libreoffice.tar.gz.asc /tmp/libreoffice.tar.gz
+          changed_when: false
+        - name: Unarchive libreoffice
+          ansible.builtin.unarchive: src="/tmp/libreoffice.tar.gz" dest="/tmp" remote_src="yes"
+        - name: Install libreoffice packages only for console writer
+          yum: name="/tmp/LibreOffice_6.4.7.2_Linux_x86-64_rpm/RPMS/{{ item }}" disable_gpg_check="yes"
+          loop:
+            - libreoffice6.4-ure-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-ooofonts-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-core-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-images-6.4.7.2-2.x86_64.rpm
+            - libreoffice6.4-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-writer-6.4.7.2-2.x86_64.rpm
+            - libreoffice6.4-writer-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-en-US-6.4.7.2-2.x86_64.rpm
+            - libobasis6.4-graphicfilter-6.4.7.2-2.x86_64.rpm
+        - name: Clean
+          file: path="/tmp/{{item}}" state=absent
+          loop: ['libreoffice.tar.gz.asc','libreoffice.tar.gz','LibreOffice_6.4.7.2_Linux_x86-64_rpm/']
+
+# Simple test conversion
+# echo "<b>test-writer.html</b> <i>test-writer.html</i>" > /tmp/test.html
+# /opt/libreoffice6.4/program/soffice --headless --invisible --nocrashreport --nodefault --nofirststartwizard --nologo --norestore \
+#                                     --writer --convert-to docx --outdir /tmp /tmp/test.html
