@@ -1,0 +1,25 @@
+
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install MySQL server
+      yum: name="mysql-server, mysql-devel" state="present"
+    - name: Copy configuration
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/mysql-server/mysql8.cnf', split_lines=False) }}" dest="/etc/my.cnf.d/mysql-shell.in.net.cnf"
+    - name: Activate mysqld service
+      ansible.builtin.systemd: name="mysqld" state="started" enabled="yes"
+    - name: Install Python module MySQL for managment
+      pip: name="MySQL"
+    - name: Check MySQL password file exists
+      stat: path="/etc/shell.in.net/mysql-pwd"
+      register: mysql_pwfile
+    - name: MySQL secure installation
+      when: mysql_pwfile.stat.exists == false
+      no_log: True
+      block:
+        - name: MySQL delete test database and anonymous users
+          shell: mysql -u root -e "{{ lookup('url', '{{ shell_in_net_app_url }}/mysql-server/init.sql', split_lines=False) }}"
+        - name: Set password for root
+          mysql_user: login_user="root" login_password="" name="root" password="{{ lookup('password', '/etc/shell.in.net/mysql-pwd') }}"
