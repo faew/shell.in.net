@@ -1,0 +1,12 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install chromium
+      yum: name="chromium, google-roboto-fonts" state="present"
+    - name: Disable chrome-sandbox
+      file: path="/usr/lib64/chromium-browser/chrome-sandbox" mode="0755"
+
+# /usr/lib64/chromium-browser/chromium-browser --no-sandbox --headless --print-to-pdf="/tmp/chrome.pdf" https://google.com
+# Install the fonts, if needed
