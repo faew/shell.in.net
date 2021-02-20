@@ -1,0 +1,20 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install PHP
+      yum:
+        name: "php, php-common, php-pdo, php-mysqlnd, php-pear, php-devel, php-soap, php-json, php-opcache,\
+               php-xml, php-gd, php-dba, php-mbstring, php-pgsql, php-posix, php-bcmath, php-intl"
+        state: present
+    - name: Install devel libs
+      yum: name="ImageMagick-devel, libsodium-devel, libzip-devel" enablerepo="powertools" state="present"
+    - name: "Compile php modules"
+      community.general.pear: name="pecl/{{ item }}" state="present"
+      loop: ['imagick','libsodium','zip']
+    - name: "Install php modules in php.ini"
+      copy: content="extension={{ item | regex_replace('lib','') }}" dest="/etc/php.d/90-{{ item }}.ini"
+      loop: ['imagick','libsodium','zip']
+    - name: Restart httpd service
+      ansible.builtin.systemd: name="httpd" state="restarted" enabled="yes"
