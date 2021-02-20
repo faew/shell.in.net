@@ -1,0 +1,17 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: "Delete custum php modules"
+      community.general.pear: name="pecl/{{ item }}" state="absent"
+      loop: ['imagick','libsodium','zip']
+    - name: DeInstall PHP
+      yum: name="php, php-common" state="absent"
+    - name: Default php version 7.2
+      set_fact:
+        phpversion: "{{ phpversion | default('7.2') }}"
+    - name: Reset PHP version
+      shell:
+        cmd: "yum -y module reset php && yum -y module enable php:{{ phpversion }}"
+        warn: false
