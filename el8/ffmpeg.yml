@@ -1,0 +1,13 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Import a key rpmfusion repo
+      ansible.builtin.rpm_key: state="present" key="https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-el-8"
+    - name: Install rpmfusion repo
+      yum: name="https://download1.rpmfusion.org/free/el/updates/8/x86_64/r/rpmfusion-free-release-8-0.1.noarch.rpm" state="present"
+    - name: Install SDL2
+      yum: name="SDL2" enablerepo="powertools" state="present"
+    - name: Install ffmpeg
+      yum: name="ffmpeg, ffmpeg-devel" state="present"
