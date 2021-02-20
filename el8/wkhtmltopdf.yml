@@ -1,0 +1,11 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install wkhtmltopdf util
+      yum: name="https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.centos8.x86_64.rpm" state="present" disable_gpg_check="yes"
+    - name: Install Xvfb util
+      yum: name="xorg-x11-server-Xvfb" state="present"
+
+# xvfb-run -a -s "-screen 0 1024x768x24" wkhtmltopdf http://www.google.com output.pdf
