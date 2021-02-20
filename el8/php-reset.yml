@@ -6,6 +6,9 @@
     - name: "Delete custum php modules"
       community.general.pear: name="pecl/{{ item }}" state="absent"
       loop: ['imagick','libsodium','zip']
+    - name: "Delete custum php modules in php.ini"
+      file: path="/etc/php.d/90-{{ item }}.ini" state=absent
+      loop: ['imagick','libsodium','zip']
     - name: DeInstall PHP
       yum: name="php, php-common" state="absent"
     - name: Default php version 7.2
