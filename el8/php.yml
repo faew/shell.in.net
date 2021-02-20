@@ -16,5 +16,9 @@
     - name: "Install php modules in php.ini"
       copy: content="extension={{ item | regex_replace('lib','') }}" dest="/etc/php.d/90-{{ item }}.ini"
       loop: ['imagick','libsodium','zip']
+    - name: Deactivate php-fmp service
+      ansible.builtin.systemd: name="php-fpm" state="stopped" enabled="no"
+    - name: Delete php-fmp service from wants Apache
+      file: path=/usr/lib/systemd/system/httpd.service.d/php-fpm.conf state=absent
     - name: Restart httpd service
       ansible.builtin.systemd: name="httpd" state="restarted" enabled="yes"
