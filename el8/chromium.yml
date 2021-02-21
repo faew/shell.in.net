@@ -8,5 +8,5 @@
     - name: Disable chrome-sandbox
       file: path="/usr/lib64/chromium-browser/chrome-sandbox" mode="0755"
 
-# /usr/lib64/chromium-browser/chromium-browser --no-sandbox --headless --print-to-pdf="/tmp/chrome.pdf" https://google.com
+# /usr/lib64/chromium-browser/chromium-browser --no-sandbox --disable-gpu --headless --print-to-pdf="/tmp/chrome.pdf" https://google.com
 # Install the fonts, if needed
