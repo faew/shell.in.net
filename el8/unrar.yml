@@ -1,0 +1,24 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Check unrar bin file exists
+      stat: path="/usr/local/bin/unrar"
+      register: unrar_bin
+    - name: Download unrar
+      when: unrar_bin.stat.exists == false
+      block:
+        - name: Download unrar file
+          get_url:
+            url: "https://www.rarlab.com/rar/rarlinux-x64-6.0.0.tar.gz"
+            dest: "/tmp/rar.tar.gz"
+            checksum: md5:72c0e02195ee3ab7bc10eb747bc559f2
+        - name: Unarchive unrar
+          ansible.builtin.unarchive: src="/tmp/rar.tar.gz" dest="/tmp" remote_src="yes"
+        - name: Copy unrar
+          copy: src="/tmp/rar/unrar" dest="/usr/local/bin/unrar" remote_src="yes" mode="755"
+        - name: Clean builds
+          file: path=/tmp/rar state=absent
+        - name: Clean archive
+          file: path=/tmp/rar.tar.gz state=absent
