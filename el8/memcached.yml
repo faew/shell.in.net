@@ -1,0 +1,15 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install memcached
+      yum: name="memcached, zlib-devel, libmemcached, libmemcached-devel" enablerepo="powertools" state="present"
+    - name: Selinux enable booleans for work memcached
+      ansible.posix.seboolean: name="httpd_can_network_memcache" state="yes" persistent="yes"
+    - name: Increase cache size
+      ansible.builtin.replace: path="/etc/sysconfig/memcached" regexp='64' replace='128'
+    - name: Disable IPv6
+      ansible.builtin.replace: path="/etc/sysconfig/memcached" regexp=',::1' replace=''
+    - name: Start memcached service
+      ansible.builtin.systemd: name="memcached" state="started" enabled="yes"
