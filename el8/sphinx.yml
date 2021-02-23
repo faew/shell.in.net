@@ -1,0 +1,9 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install Sphinx server
+      yum: name="sphinx" state="present"
+    - name: Activate Sphinx service
+      ansible.builtin.systemd: name="searchd" state="started" enabled="yes"
