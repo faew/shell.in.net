@@ -48,6 +48,8 @@
           file: path=/tmp/push-server-1.0.0-4.el7.centos.noarch.rpm state=absent
         - name: Clean  temp  push-server
           file: path=/tmp/push-server state=absent
+    - name: Change config permisson
+      file: dest=/etc/push-server owner=bitrix group=root recurse=yes
     - name: Start push-server
       ansible.builtin.systemd: name="push-server" state="started" enabled="yes" daemon_reload="yes"
     - name: Secure config
