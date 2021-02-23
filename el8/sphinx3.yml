@@ -1,0 +1,39 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install Sphinx 2 server
+      yum: name="sphinx" state="present"
+    - name: Disable Sphinx 2 service
+      ansible.builtin.systemd: name="searchd" state="stopped" enabled="no"
+    - name: Copy Sphinx 3 config
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/sphinx/sphinx3.conf', split_lines=False) }}" dest="/etc/sphinx/sphinx3.conf"
+    - name: Write new service Sphinx 3
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/sphinx/searchd3.service', split_lines=False) }}" dest="/usr/lib/systemd/system/searchd3.service"
+    - name: Delete all indexes
+      file: path="/var/lib/sphinx/" state="absent"
+    - name: Create folder indexes
+      file: path="/var/lib/sphinx/" state="directory" owner="sphinx" group="root"
+    - name: Check Sphinx 3 bin file exists
+      stat: path="/usr/local/bin/searchd"
+      register: sphinx3_bin
+    - name: Download Sphinx3
+      when: sphinx3_bin.stat.exists == false
+      block:
+        - name: Download source sphinx3
+          get_url:
+            url: "http://sphinxsearch.com/files/sphinx-3.3.1-b72d67b-linux-amd64.tar.gz"
+            dest: "/tmp/sphinx-3.3.1.tar.gz"
+            checksum: md5:c31a77970ce7eb75f966af5b88b59550
+        - name: Unarchive sphinx3
+          ansible.builtin.unarchive: src="/tmp/sphinx-3.3.1.tar.gz" dest="/tmp" remote_src="yes"
+        - name: Copy sphinx3
+          copy: src="/tmp/sphinx-3.3.1/bin/{{ item }}" dest="/usr/local/bin/" remote_src="yes" setype="bin_t" mode="0755"
+          loop: ['indexer','indextool','searchd','wordbreaker']
+    - name: Start Sphinx 3 service
+      ansible.builtin.systemd: name="searchd3" state="started" enabled="yes"
+    - name: Clean archive
+      file: path=/tmp/sphinx-3.3.1.tar.gz state=absent
+    - name: Clean sphinx archive
+      file: path=/tmp/sphinx-3.3.1 state=absent
