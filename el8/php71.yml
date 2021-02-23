@@ -1,0 +1,60 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Check PHP bin file exists
+      stat: path="/usr/local/php71/bin/php"
+      register: php_bin
+    - name: Compile php71
+      when: php_bin.stat.exists == false
+      block:
+        - name: Install dev libs
+          yum:
+            name: "httpd-devel, zlib-devel, openssl-devel, sqlite-devel, bzip2-devel,openldap-devel, libicu-devel, libwebp-devel, gmp-devel, libXpm-devel,\
+                   libcurl-devel, libicu-devel, mysql-devel, libxslt-devel, mhash-devel, libmcrypt-devel, libpng-devel, libxml2-devel, postgresql-devel,\
+                   libjpeg-turbo-devel, freetype-devel, @Development tools"
+            state: present
+        - name: Install dev lib from powertools
+          yum: name="ImageMagick-devel" enablerepo="powertools" state="present"
+        - name: Download source php71
+          get_url:
+            url: "http://php.net/get/php-7.1.33.tar.gz/from/this/mirror"
+            dest: "/tmp/php-7.1.33.tar.gz"
+            checksum: sha256:0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+        - name: Clean builds
+          file: path=/tmp/php-7.1.33 state=absent
+        - name: Unarchive php71
+          ansible.builtin.unarchive: src="/tmp/php-7.1.33.tar.gz" dest="/tmp" remote_src="yes"
+        - name: Configure php
+          shell: cd /tmp/php-7.1.33 && ./configure --prefix=/usr/local/php71 --with-ldap --with-libdir=lib64 --with-config-file-path=/usr/local/php71/etc \
+                                        --with-config-file-scan-dir=/usr/local/php71/etc/conf.d --with-apxs2 --enable-bcmath --with-bz2 --with-curl --enable-cgi \
+                                        --enable-filter --enable-pcntl --with-gd --with-mhash --enable-gd-native-ttf --with-freetype-dir --with-jpeg-dir --with-png-dir \
+                                        --with-webp-dir --enable-mbstring --with-mcrypt --enable-json --enable-mysqlnd --with-mysql-sock=/var/lib/mysql/mysql.sock \
+                                        --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-pdo-sqlite --disable-phpdbg --disable-phpdbg-webhelper --enable-opcache \
+                                        --with-openssl --enable-simplexml --with-xsl --with-sqlite3 --enable-xmlreader --enable-xmlwriter --enable-zip --enable-soap \
+                                        --with-zlib --enable-intl --with-icu-dir=/usr/ --with-pgsql --with-pdo-pgsql
+        - name: Make php
+          shell: cd /tmp/php-7.1.33 && make
+        - name: Disable install Apache php_module in Makefile
+          ansible.builtin.replace: path="/tmp/php-7.1.33/Makefile" regexp='\@\$\(INSTALL_IT\)' replace=''
+        - name: Install php
+          shell: cd /tmp/php-7.1.33 && make install
+        - name: Create a directory php conf.d
+          ansible.builtin.file: path="/usr/local/php71/etc/conf.d" state="directory" mode="0755"
+        - name: "Install opcache php module in php.ini"
+          copy: content="zend_extension=opcache.so" dest="/usr/local/php71/etc/conf.d/opcache.ini"
+        - name: Copy production php.ini
+          copy: src="/tmp/php-7.1.33/php.ini-production" dest="{{ phpini }}" remote_src="yes"
+        - name: Create a directory php libexec
+          ansible.builtin.file: path="/usr/local/php71/libexec" state="directory" mode="0755"
+        - name: Copy Apache php module
+          copy: src="/tmp/php-7.1.33/libs/libphp7.so" dest="/usr/local/php71/libexec/libphp71.so" remote_src="yes" mode="0755" setype="httpd_modules_t"
+        - name: "Compile php module imagick"
+          community.general.pear: name="pecl/imagick" state="present" executable="/usr/local/php71/bin/pear"
+        - name: "Install imagick php module in php.ini"
+          copy: content="extension=imagick.so" dest="/usr/local/php71/etc/conf.d/imagick.ini"
+        - name: Clean builds
+          file: path=/tmp/php-7.1.33 state=absent
+        - name: Clean archive
+          file: path=/tmp/php-7.1.33.tar.gz state=absent
