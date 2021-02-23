@@ -1,0 +1,27 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install Redis server
+      yum: name="redis" state="present"
+    - name: Move unixsocket
+      ansible.builtin.replace: path="/etc/redis.conf" regexp="# unixsocket /tmp/redis.sock" replace="unixsocket /var/run/redis/redis.sock"
+    - name: Rights unixsocket
+      ansible.builtin.replace: path="/etc/redis.conf" regexp="# unixsocketperm 700" replace="unixsocketperm 777"
+    - name: Disable exist save database
+      ansible.builtin.replace: path="/etc/redis.conf" regexp="^save (.*)$" replace="# save \1"
+    - name: Disable save database full
+      ansible.builtin.replace: path="/etc/redis.conf" regexp='#   save ""' replace='save ""'
+    - name: Activate redis service
+      ansible.builtin.systemd: name="redis" state="started" enabled="yes"
+    - name: Copy selinux policy
+      copy: 
+        content: "module redis_socket 1.0; require {type httpd_t;type redis_t;class unix_stream_socket connectto;}allow httpd_t redis_t:unix_stream_socket connectto;"
+        dest: "/tmp/redis_socket.te"
+    - name: Make and Install selinux policy    
+      shell: checkmodule -M -m -o /tmp/redis_socket.mod /tmp/redis_socket.te && \
+             semodule_package -o /tmp/redis_socket.pp -m /tmp/redis_socket.mod && semodule -i /tmp/redis_socket.pp
+    - name: Clean
+      file: path="/tmp/redis_socket.{{ item }}" state="absent"
+      loop: ['te','mod','pp']
