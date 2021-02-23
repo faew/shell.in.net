@@ -1,0 +1,125 @@
+--- push-server-multi   2021-02-05 15:40:36.124298398 +0300
++++ patch-push-server   2021-02-05 15:37:41.260195826 +0300
+@@ -52,17 +52,19 @@
+ [[ -z $TMPL_SUB ]]  &&  TMPL_SUB=push-server-sub-__PORT__.json
+ [[ -z $TMPL_PUB ]]  &&  TMPL_PUB=push-server-pub-__PORT__.json
+ [[ -z $USER ]]      &&  USER=bitrix
+-[[ -z $ID_SUB ]]    &&  ID_SUB=2              # max ID for sub service
+-[[ -z $ID_PUB ]]    &&  ID_PUB=1              # max ID for pub service
++[[ -z $ID_SUB ]]    &&  ID_SUB=8              # max ID for sub service
++[[ -z $ID_PUB ]]    &&  ID_PUB=2              # max ID for pub service
+ [[ -z $IP_LIST ]]   &&  IP_LIST='"127.0.0.1"'
+ [[ -z $PID_SUB ]]   &&  PID_SUB=push-server-sub-__PORT__.pid
+ [[ -z $PID_PUB ]]   &&  PID_PUB=push-server-pub-__PORT__.pid
+ [[ -z $WS_HOST ]]   &&  WS_HOST=127.0.0.1
+ [[ -z $WS_PORT ]]   &&  WS_PORT=8895
+-[[ -z $REDIS_SOCK ]] && REDIS_SOCK=/tmp/redis.sock
++[[ -z $REDIS_SOCK ]] && REDIS_SOCK=/var/run/redis/redis.sock
+ [[ -z $SUBPATH ]]   && SUBWSPATH="/bitrix/subws/"
+ [[ -z $SUBWSPATH ]]   && SUBPATH="/bitrix/sub/"
+ [[ -z $PUBPATH ]]   && PUBPATH="/bitrix/pub/"
++[[ -z $RESTPATH ]]   && RESTPATH="/bitrix/rest/"
++
+
+ [[ ! -d $VAR_DIR ]] && mkdir -p $VAR_DIR && chown ${USER}:root $VAR_DIR
+
+@@ -91,12 +93,14 @@
+                                s/__WS_PORT__/$WS_PORT/g;
+                                s:__PUBPATH__:$PUBPATH:g;
+                                s:__SUBPATH__:$SUBPATH:g;
++                               s:__RESTPATH__:$RESTPATH:g;
+                                s:__SUBWSPATH__:$SUBWSPATH:g;
+                                s:__REDIS_SOCK__:$REDIS_SOCK:g;
+                                s:__IP_LIST__:$(printf "%q" $IP_LIST):g;
+                        "> $dest_file
+
+         chown -R ${USER}:root $dest_file
++       chmod 440 $dest_file
+         echo "$dest_file"
+     done
+ }
+@@ -140,20 +144,22 @@
+         status_service "$TMPL_PUB" "$ID_PUB" "$BASE_PUB" "$PID_PUB"
+ }
+
+-
+ start_service(){
+     template_name=$1
+     service_id=$2
+     service_base=$3
+     pid_name=$4
++       run_type=${5:-initd}
+
+     template_file=$CFG_DIR/$template_name
+     pid_file=$VAR_DIR/$pid_name
+     service_type=$(echo $template_name | awk -F'-' '{print $3}')
++    pushd $HG_DIR 1>/dev/null 2>&1
++
+     for service_id in `seq 0 ${service_id}`; do
+-        log_file=$VAR_DIR/$service_type-$service_port.log
+-
+         service_port=${service_base}${service_id}
++       log_file=$VAR_DIR/$service_type-$service_port.log
++
+         cfgf=$(echo "$template_file" | sed -e "s/__PORT__/$service_port/")
+         pidf=$(echo "$pid_file" | sed -e "s/__PORT__/$service_port/")
+
+@@ -163,15 +169,21 @@
+         echo -n "Start $service_type-$service_port -> "
+         status -p $pidf 1>/dev/null 2>&1
+         status_rtn=$?
++
+         if [[ $status_rtn -eq 0 ]]; then
+             echo "is running pid=$(cat $pidf)"
+         else
+             # start process
+-            pushd $HG_DIR 1>/dev/null 2>&1
+-            sudo -u $USER -H /bin/bash \
+-                -c "( node server.js --config $cfgf \
+-                1>$log_file 2>&1 ) &"
+-            rtn=$?
++                       if [[ $run_type == "initd" ]]; then
++                               sudo -u $USER -H /bin/bash \
++                                       -c "( node server.js --config $cfgf \
++                                       1>$log_file 2>&1 ) &"
++                               rtn=$?
++                       else
++                ( node server.js --config $cfgf \
++                                       1>$log_file 2>&1 ) &
++                               rtn=$?
++                       fi
+             to_log "start rtn_code=$rtn"
+
+             if [[ -z $rtn ]]; then
+@@ -187,7 +199,6 @@
+                     to_log "Error"
+                 fi
+             fi
+-            popd 1>/dev/null 2>&1
+         fi
+     done
+ }
+@@ -195,12 +206,13 @@
+ # start services
+ start_services(){
+     SERVICE=${1:-all}
++    TYPE=${2:-initd}
+
+     [[ ( "$SERVICE" == "all" ) || ( "$SERVICE" == "sub" ) ]] && \
+-        start_service "$TMPL_SUB" "$ID_SUB" "$BASE_SUB" "$PID_SUB"
++        start_service "$TMPL_SUB" "$ID_SUB" "$BASE_SUB" "$PID_SUB" "$TYPE"
+
+     [[ ( "$SERVICE" == "all" ) || ( "$SERVICE" == "pub" ) ]] && \
+-        start_service "$TMPL_PUB" "$ID_PUB" "$BASE_PUB" "$PID_PUB"
++        start_service "$TMPL_PUB" "$ID_PUB" "$BASE_PUB" "$PID_PUB" "$TYPE"
+
+ }
+
+@@ -241,6 +253,7 @@
+ case ${1} in
+     "update_configs") generate_config ${2} ;;
+     "start") start_services ${2} ;;
++    "systemd_start") start_services "${2}" "systemd" ;;
+     "status") status_services ${2} ;;
+     "stop") stop_services ${2} ;;
+     "restart")
