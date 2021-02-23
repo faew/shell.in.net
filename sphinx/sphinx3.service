@@ -1,0 +1,15 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+[Unit]
+Description=Sphinx 3 - SQL Full Text Search Engine
+After=local-fs.target network.target
+
+[Service]
+User=sphinx
+Type=forking
+PIDFile=/run/sphinx/searchd.pid
+ExecStart=/usr/local/bin/searchd --config /etc/sphinx/sphinx3.conf
+
+[Install]
+WantedBy=multi-user.target
