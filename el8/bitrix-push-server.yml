@@ -1,0 +1,61 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install node
+      yum: name="nodejs, httpd" state="present"
+    - name: Create system user
+      user: name="bitrix" system="yes" create_home="no" shell="/usr/sbin/nologin"
+    - name: Check Bitrix Push Seerver exists
+      stat: path="/opt/push-server/server.js"
+      register: pushserver_bin
+    - name: Download Push server 1.0.0-4
+      when: pushserver_bin.stat.exists == false
+      block:
+        - name: Download bitrix push server
+          get_url:
+            url: "{{ shell_in_net_app_url }}/bitrix-push-server/push-server-1.0.0-4.el7.centos.noarch.rpm"
+            dest: "/tmp/push-server-1.0.0-4.el7.centos.noarch.rpm"
+            checksum: md5:6b0b5b6104b5119cb93035342d5851bb
+        - name: Make temp dir
+          file: path="/tmp/push-server" state=directory
+        - name: Unarchive push-server
+          shell: cd /tmp/push-server && rpm2cpio /tmp/push-server-1.0.0-4.el7.centos.noarch.rpm | cpio -idmv
+        - name: Install push server
+          copy: src="/tmp/push-server/opt/push-server" dest="/opt" group="root" owner="bitrix" remote_src="yes" setype="usr_t"
+        - name: Copy service push-server
+          copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/bitrix-push-server/push-server.service', split_lines=False) }}" dest="/usr/lib/systemd/system/push-server.service"
+        - name: Copy apache balancer push-server
+          copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/bitrix-push-server/push-server.conf', split_lines=False) }}" dest="/etc/httpd/conf.d/push-apache.conf.front"
+        - name: Copy patch for exec push-server
+          copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/bitrix-push-server/push-server.patch', split_lines=False) }}" dest="/tmp/push-server/etc/init.d/patch"
+        - name: Apply patch to push-server
+          ansible.posix.patch: dest="/tmp/push-server/etc/init.d/push-server-multi" src="/tmp/push-server/etc/init.d/patch" remote_src="yes"
+        - name: Copy service push-server
+          copy: src="/tmp/push-server/etc/init.d/push-server-multi" dest="/etc/init.d/push-server-multi" remote_src="yes" mode="0755"
+        - name: Copy config templates push-server
+          copy: src="/tmp/push-server/etc/push-server" dest="/etc" remote_src="yes"
+        - name: Init folder logs
+          file: path="/var/log/push-server" state="directory" group="root" owner="bitrix" mode="0750"
+        - name: Compile push-server
+          shell: cd /opt/push-server && npm install --production
+        - name: Init config
+          shell: cd /opt/push-server && /etc/init.d/push-server-multi update_configs
+          register: command_result
+          failed_when: "'Error' in command_result.stdout"
+        - name: Clean rpm archive
+          file: path=/tmp/push-server-1.0.0-4.el7.centos.noarch.rpm state=absent
+        - name: Clean  temp  push-server
+          file: path=/tmp/push-server state=absent
+    - name: Start push-server
+      ansible.builtin.systemd: name="push-server" state="started" enabled="yes" daemon_reload="yes"
+    - name: Secure config
+      file: path="/etc/sysconfig/push-server-multi" mode="0440" group="root" owner="bitrix"
+    - name: Register config
+      command: "cat /etc/sysconfig/push-server-multi"
+      register: pushconfig
+    - name: Show config with key
+      debug: msg={{ pushconfig.stdout }}
+    - name: Restart httpd service
+      ansible.builtin.systemd: name="httpd@front" state="restarted" enabled="yes"
