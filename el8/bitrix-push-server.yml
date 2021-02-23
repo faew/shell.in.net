@@ -31,7 +31,7 @@
         - name: Copy patch for exec push-server
           copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/bitrix-push-server/push-server.patch', split_lines=False) }}" dest="/tmp/push-server/etc/init.d/patch"
         - name: Apply patch to push-server
-          ansible.posix.patch: dest="/tmp/push-server/etc/init.d/push-server-multi" src="/tmp/push-server/etc/init.d/patch" remote_src="yes"
+          ansible.posix.patch: dest="/tmp/push-server/etc/init.d/push-server-multi" src="/tmp/push-server/etc/init.d/patch" remote_src="yes" ignore_whitespace="yes"
         - name: Copy service push-server
           copy: src="/tmp/push-server/etc/init.d/push-server-multi" dest="/etc/init.d/push-server-multi" remote_src="yes" mode="0755"
         - name: Copy config templates push-server
