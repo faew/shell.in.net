@@ -45,7 +45,7 @@
         - name: "Install opcache php module in php.ini"
           copy: content="zend_extension=opcache.so" dest="/usr/local/php71/etc/conf.d/opcache.ini"
         - name: Copy production php.ini
-          copy: src="/tmp/php-7.1.33/php.ini-production" dest="{{ phpini }}" remote_src="yes"
+          copy: src="/tmp/php-7.1.33/php.ini-production" dest="/usr/local/php71/etc/php.ini" remote_src="yes"
         - name: Create a directory php libexec
           ansible.builtin.file: path="/usr/local/php71/libexec" state="directory" mode="0755"
         - name: Copy Apache php module
