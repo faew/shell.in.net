@@ -5,6 +5,8 @@
   tasks:
     - name: Install postgresql-server
       yum: name="postgresql-server, postgresql" state="present"
+    - name: Install Python module for managment
+      pip: name="psycopg2" state="present"
     - name: Init DB
       command: postgresql-setup --initdb --unit postgresql
     - name: Disable ipv6
