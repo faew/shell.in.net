@@ -1,0 +1,26 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install postgresql-server
+      yum: name="postgresql-server, postgresql" state="present"
+    - name: Disable ipv6
+      ansible.builtin.replace: path="/var/lib/pgsql/data/postgresql.conf" regexp="^#listen_addresses = 'localhost'(.*)$" replace="listen_addresses = '127.0.0.1'\1"
+    - name: Init DB
+      command: postgresql-setup --initdb --unit postgresql
+    - name: Copy local config
+      copy: 
+        content: "{{ lookup('url', '{{ shell_in_net_app_url }}/postgresql-server/pg_hba.conf', split_lines=False) }}"
+        dest: "/var/lib/pgsql/data/pg_hba.conf"
+        backup: yes
+    - name: Start postgresql-server
+      ansible.builtin.systemd: name="postgresql" state="restarted" enabled="yes"
+    - name: Set password for postgres user
+      become: yes
+      become_method: su
+      become_user: postgres
+      postgresql_user: 
+        name: postgres
+        password: "{{ lookup('password', '/etc/shell.in.net/pgsql-pwd') }}"
+        
