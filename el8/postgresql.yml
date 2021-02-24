@@ -5,10 +5,10 @@
   tasks:
     - name: Install postgresql-server
       yum: name="postgresql-server, postgresql" state="present"
-    - name: Disable ipv6
-      ansible.builtin.replace: path="/var/lib/pgsql/data/postgresql.conf" regexp="^#listen_addresses = 'localhost'(.*)$" replace="listen_addresses = '127.0.0.1'\1"
     - name: Init DB
       command: postgresql-setup --initdb --unit postgresql
+    - name: Disable ipv6
+      ansible.builtin.replace: path="/var/lib/pgsql/data/postgresql.conf" regexp="^#listen_addresses = 'localhost'(.*)$" replace="listen_addresses = '127.0.0.1'\1"
     - name: Copy local config
       copy: 
         content: "{{ lookup('url', '{{ shell_in_net_app_url }}/postgresql-server/pg_hba.conf', split_lines=False) }}"
