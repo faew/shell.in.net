@@ -8,7 +8,7 @@
     - name: Init named chroot
       command: /usr/libexec/setup-named-chroot.sh /var/named/chroot on
     - name: Stop named
-      ansible.builtin.systemd: name="named-chroot" state="stop" enabled="yes"
+      ansible.builtin.systemd: name="named-chroot" state="stopped" enabled="yes"
     - name: Disable ipv6
       ansible.builtin.replace: path="/etc/named.conf" regexp="::1" replace="none"
     - name: Change to public listen
@@ -16,7 +16,7 @@
     - name: Disable recursion
       ansible.builtin.replace: path="/etc/named.conf" regexp="allow-query" replace="allow-recursion"
     - name: Start named
-      ansible.builtin.systemd: name="named-chroot" state="start" enabled="yes"
+      ansible.builtin.systemd: name="named-chroot" state="started" enabled="yes"
     - name: reStart named - for aplay all configs
       ansible.builtin.systemd: name="named-chroot" state="restarted" enabled="yes"
     - name: Permit traffic for dns service
