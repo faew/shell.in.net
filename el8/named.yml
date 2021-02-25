@@ -1,0 +1,23 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install named
+      yum: name="bind, bind-utils, bind-chroot" state="present"
+    - name: Init named chroot
+      command: /usr/libexec/setup-named-chroot.sh /var/named/chroot on
+    - name: Stop named
+      ansible.builtin.systemd: name="named-chroot" state="stop" enabled="yes"
+    - name: Disable ipv6
+      ansible.builtin.replace: path="/etc/named.conf" regexp="::1" replace="none"
+    - name: Change to public listen
+      ansible.builtin.replace: path="/etc/named.conf" regexp="127\.0\.0\.1" replace="any"
+    - name: Disable recursion
+      ansible.builtin.replace: path="/etc/named.conf" regexp="allow-query" replace="allow-recursion"
+    - name: Start named
+      ansible.builtin.systemd: name="named-chroot" state="start" enabled="yes"
+    - name: reStart named - for aplay all configs
+      ansible.builtin.systemd: name="named-chroot" state="restarted" enabled="yes"
+    - name: Permit traffic for dns service
+      ansible.posix.firewalld: service="dns" permanent="yes" state="enabled" zone="public" immediate="yes"
