@@ -7,7 +7,7 @@
     - name: Install vsFtpd
       yum: name="vsftpd" state="present"
     - name: Generate a Self Signed certificate
-      command: "openssl req -x509 -nodes -newkey rsa:2048 -days 365 -keyout /etc/vsftpd/vsftpd.key -out /etc/vsftpd/vsftpd.crt -subj /C=/ST=/L=/O=/CN={{ server_hostname }}"
+      command: "openssl req -x509 -nodes -newkey rsa:2048 -days 365 -keyout /etc/vsftpd/vsftpd.key -out /etc/vsftpd/vsftpd.crt -subj /C=/ST=/L=/O=/CN={{ inventory_hostname }}"
     - name: Secure key
       file: path="/etc/vsftpd/vsftpd.key" mode="0400"
     - name: Copy local config
