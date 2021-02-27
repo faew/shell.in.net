@@ -1,0 +1,33 @@
+
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install vsFtpd
+      yum: name="vsftpd" state="present"
+    - name: Generate a Self Signed certificate
+      command: "openssl req -x509 -nodes -newkey rsa:2048 -days 365 -keyout /etc/vsftpd/vsftpd.key -out /etc/vsftpd/vsftpd.crt -subj /C=/ST=/L=/O=/CN={{ server_hostname }}"
+    - name: Secure key
+      file: path="/etc/vsftpd/vsftpd.key" mode="0400"
+    - name: Copy local config
+      copy: 
+        content: "{{ lookup('url', '{{ shell_in_net_app_url }}/vsftpd/vsftpd.conf', split_lines=False) }}"
+        dest: "/etc/vsftpd/vsftpd.conf"
+        backup: yes
+    - name: Permit traffic for ftp service
+      ansible.posix.firewalld: service="ftp" permanent="yes" state="enabled" zone="public" immediate="yes"
+    - name: Permit traffic for ftp passive mode
+      ansible.posix.firewalld: port="65000-65050/tcp" permanent="yes" state="enabled" zone="public" immediate="yes"
+    - name: Selinux enable booleans for ftp passive mode in home folders
+      ansible.posix.seboolean: name="{{ item }}" state="yes" persistent="yes"
+      loop: ['ftpd_full_access','ftpd_use_passive_mode']
+    - name: Ensure enable ftp for nologin users
+      ansible.builtin.lineinfile: path="/etc/shells" line="/sbin/nologin"
+    - name: Enable fail2ban for ftp
+      ini_file: path="/etc/fail2ban/jail.d/customisation.local" section="vsftpd" option="enabled" value="true"
+    - name: Set log path in fail2ban for ftp
+      ini_file: path="/etc/fail2ban/jail.d/customisation.local" section="vsftpd" option="logpath" value="%(syslog_authpriv)s"
+    - name: Activate service
+      ansible.builtin.systemd: name="{{ item }}" state="restarted" enabled="yes"
+      loop: ['fail2ban','vsftpd']
