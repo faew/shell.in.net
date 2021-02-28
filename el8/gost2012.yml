@@ -25,5 +25,7 @@
       copy: src="/tmp/engine/bin/" dest="/usr/lib64/engines-1.1/"  remote_src="yes"
     - name: Create a symbolic link
       file: src="gost.so.1.1" dest="/usr/lib64/engines-1.1/gost.so"  state="link"
+    - name: Create a symbolic link
+      file: src="engines-1.1/gost.so.1.1" dest="/usr/lib64/gost.so.1.1"  state="link"
     - name: Clean
       file: path=/tmp/engine state=absent
