@@ -1,0 +1,29 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+# openssl pkcs12  -engine gost -in p12.pfx  -nokeys -out cert.pem
+# openssl pkcs12  -engine gost -in p12.pfx  -nodes -nocerts -out key.pem
+# openssl smime -sign  -engine gost -binary -outform DER -noattr -signer ./server.crt -inkey ./server.key -in ./message.txt -out ./sign.out
+# /usr/lib64/engines-1.1/get-cpcert /path/folder/crypto/pro password > cert-key.pem
+# PHP: $sign = rtrim(strtr(trim(base64_encode(file_get_contents("./sign.out"))), '+/', '-_'), '=');
+
+- hosts: localhost
+  tasks:
+    - name: Install devel
+      yum: name="cmake, openssl-devel" state="present"
+    - name: Git checkout gost-engine
+      git: repo='https://github.com/gost-engine/engine.git' dest="/tmp/engine" version="openssl_1_1_0"
+    - name: Build gost-engine
+      shell: cd /tmp/engine && cmake ./ && make all
+    - name: Create a symbolic link
+      file: src="gost.so.1.1" dest="/tmp/engine/bin/libgost.so"  state="link"
+    - name: Get source get-cpcert.c
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/gost2012/get-cpcert.c', split_lines=False) }}" dest="/tmp/engine/get-cpcert.c"
+    - name: Build get-cpcert
+      shell: cd /tmp/engine && gcc -o ./bin/get-cpcert get-cpcert.c -Lbin/ -lgost -lssl -lcrypto -lpthread -ldl -Xlinker '-rpath=.'
+    - name: Install module
+      copy: src="/tmp/engine/bin/" dest="/usr/lib64/engines-1.1/"  remote_src="yes"
+    - name: Create a symbolic link
+      file: src="gost.so.1.1" dest="/usr/lib64/engines-1.1/gost.so"  state="link"
+    - name: Clean
+      file: path=/tmp/engine state=absent
