@@ -5,3 +5,5 @@
   tasks:
     - name: Exec vendor script to switch CentOS (or other similar distribution) to the Oracle Linux
       shell: wget -q -O - https://raw.githubusercontent.com/oracle/centos2ol/main/centos2ol.sh | sh -
+    - name: Reboot
+      command: reboot
