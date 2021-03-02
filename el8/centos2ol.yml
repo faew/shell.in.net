@@ -1,0 +1,7 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Exec vendor script to switch CentOS (or other similar distribution) to the Oracle Linux
+      shell: wget -q -O - https://raw.githubusercontent.com/oracle/centos2ol/main/centos2ol.sh | sh -
