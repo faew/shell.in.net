@@ -19,9 +19,9 @@
           command: reboot
     - name: Install tools
       yum:
-        name: "epel-release, mc, telnet, nano, traceroute, wget, net-tools, yum-utils, aspell-en, setools, crontabs, rsync,\
+        name: "mc, telnet, nano, traceroute, wget, net-tools, yum-utils, aspell-en, setools, crontabs, rsync,\
                sshpass, pwgen, supervisor, glances, unzip, p7zip, htop, rdiff-backup, smartmontools, dmidecode, lm_sensors,\
-               linux-firmware, microcode_ctl, psmisc, audit-libs, pngquant, optipng, logrotate,  GraphicsMagick, bind-utils,\
+               linux-firmware, microcode_ctl, psmisc, audit-libs, optipng, logrotate,  GraphicsMagick, bind-utils,\
                idn2, dstat, nload, zlib-devel, openssl-devel, sqlite-devel, bzip2-devel, perl-devel, curl-devel, certbot,\
                glibc-headers, @Development tools"
         state: present
