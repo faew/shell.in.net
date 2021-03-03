@@ -25,8 +25,6 @@
                idn2, dstat, nload, zlib-devel, openssl-devel, sqlite-devel, bzip2-devel, perl-devel, curl-devel, certbot,\
                glibc-headers, @Development tools"
         state: present
-    - name: Install from powertools
-      yum: name="fuse-sshfs" enablerepo="powertools" state="present"
     - name: Install base services
       yum: name="audit, sysstat, chrony, cronie, firewalld, fail2ban, postfix, rsyslog" state=present
     - name: Disable fail2ban database
