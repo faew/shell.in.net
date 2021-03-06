@@ -1,0 +1,38 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Add yum repo mongod
+      copy: content="{{ lookup('url', '{{ shell_in_net_app_url }}/mongod/mongodb-org-4.4.repo', split_lines=False) }}" dest="/etc/yum.repos.d/mongodb-org-4.4.repo"
+    - name: Install mongod server
+      yum: name="mongodb-org" state="present"
+    - name: Install Python module mongo for managment
+      pip: name="pymongo"
+    - name: Copy selinux policy
+      copy:
+        content: "module mongodb_cgroup_memory 1.0;require {type cgroup_t;type mongod_t;class dir search;class file { getattr open read };}
+                  allow mongod_t cgroup_t:dir search;allow mongod_t cgroup_t:file { getattr open read };"
+        dest: "/tmp/mongodb_cgroup_memory.te"
+    - name: Make and Install selinux policy
+      shell: checkmodule -M -m -o /tmp/mongodb_cgroup_memory.mod /tmp/mongodb_cgroup_memory.te && \
+             semodule_package -o /tmp/mongodb_cgroup_memory.pp -m /tmp/mongodb_cgroup_memory.mod && semodule -i /tmp/mongodb_cgroup_memory.pp
+    - name: Clean
+      file: path="/tmp/mongodb_cgroup_memory.{{ item }}" state="absent"
+      loop: ['te','mod','pp']
+    - name: Enable replica set
+      ansible.builtin.lineinfile: path="/etc/mongod.conf" line="replication:\n  replSetName:\t rs01"
+    - name: Activate mongod service
+      ansible.builtin.systemd: name="mongod" state="started" enabled="yes"
+    - name: Activate replica set
+      shell: "mongo --eval 'printjson(rs.initiate())' && sleep 5"
+    - name: Create admin password
+      community.mongodb.mongodb_user: database="admin" name="admin" roles="userAdminAnyDatabase" state="present" password="{{ lookup('password', '/etc/shell.in.net/mongo-pwd') }}" replica_set="rs01"
+    - name: Create key file
+      shell: "openssl rand -base64 756 > /etc/mongod.key"
+    - name: Secure key file
+      ansible.builtin.file: path="/etc/mongod.key" owner="mongod" group="mongod" mode="0400"
+    - name: Enable authorization
+      ansible.builtin.lineinfile: path="/etc/mongod.conf" line="security:\n  authorization:\t enabled\n  keyFile:\t /etc/mongod.key"
+    - name: Restart mongod service
+      ansible.builtin.systemd: name="mongod" state="restarted" enabled="yes"
