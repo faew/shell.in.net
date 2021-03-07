@@ -5,5 +5,16 @@
   tasks:
     - name: Install python3-mod_wsgi
       yum: name="python3-mod_wsgi" state="present"	  
+    - name: Check 10-wsgi-python3.conf file exists
+      stat: path="/etc/httpd/conf.modules.d/10-wsgi-python3.conf"
+      register: wsgi_module
+    - name: Move wsgi_module config to front
+      when: wsgi_module.stat.size > 0
+      command: mv /etc/httpd/conf.modules.d/10-wsgi-python3.conf /etc/httpd/conf.modules.d/10-wsgi-python3.conf.front
+    - name: Create wsgi_module config
+      when: wsgi_module.stat.size > 0
+      file: path="/etc/httpd/conf.modules.d/10-wsgi-python3.conf" state=touch
     - name: Restart httpd service
       ansible.builtin.systemd: name="httpd" state="restarted" enabled="yes"
+    - name: Restart httpd front service
+      ansible.builtin.systemd: name="httpd@front" state="restarted" enabled="yes"
