@@ -1,0 +1,19 @@
+# Copyright © 2021 Shell.in.net All rights reserved.
+# Licensed under the GNU Lesser General Public License v3.0
+
+- hosts: localhost
+  tasks:
+    - name: Install Ruby
+      yum: name="libffi-devel, readline-devel, ruby" state="present"
+    - name: Init unixsocket store for unicorn
+      ansible.builtin.file: path="/var/run/unicorn" state="directory" mode="0755" setype="httpd_var_run_t"
+    - name: Copy selinux policy
+      copy: 
+        content: "module unicorn_socket 1.0; require {type unconfined_t;type httpd_t;class unix_stream_socket connectto;} allow httpd_t unconfined_t:unix_stream_socket connectto;"
+        dest: "/tmp/unicorn_socket.te"
+    - name: Make and Install selinux policy    
+      shell: checkmodule -M -m -o /tmp/unicorn_socket.mod /tmp/unicorn_socket.te && \
+             semodule_package -o /tmp/unicorn_socket.pp -m /tmp/unicorn_socket.mod && semodule -i /tmp/unicorn_socket.pp
+    - name: Clean
+      file: path="/tmp/unicorn_socket.{{ item }}" state="absent"
+      loop: ['te','mod','pp']
