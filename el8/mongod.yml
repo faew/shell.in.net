@@ -27,7 +27,7 @@
     - name: Activate replica set
       shell: "mongo --eval 'printjson(rs.initiate())' && sleep 5"
     - name: Create admin password
-      community.mongodb.mongodb_user: database="admin" name="admin" roles="userAdminAnyDatabase" state="present" password="{{ lookup('password', '/etc/shell.in.net/mongo-pwd') }}" replica_set="rs01"
+      community.mongodb.mongodb_user: database="admin" name="admin" roles="root" state="present" password="{{ lookup('password', '/etc/shell.in.net/mongo-pwd') }}" replica_set="rs01"
     - name: Create key file
       shell: "openssl rand -base64 756 > /etc/mongod.key"
     - name: Secure key file
