@@ -11,5 +11,5 @@ do
     su -l postgres -c "pg_dump -O $i" > $tdaydir/$i.sql
 done
 cd $backup_dir
-tar --remove-files -cPjf "$backup_dir/mysql_$cdate.tar.bz2" "$cdate"
-rm -f $backup_dir/mysql_`date -d "14 days ago" "+%F"`.tar.bz2
+tar --remove-files -cPjf "$backup_dir/pgsql_$cdate.tar.bz2" "$cdate"
+rm -f $backup_dir/pgsql_`date -d "14 days ago" "+%F"`.tar.bz2
